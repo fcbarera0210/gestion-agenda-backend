@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import {
   getClients,
+  getClientByEmail,
   addClient,
   updateClient,
   deleteClient,
@@ -48,6 +49,11 @@ describe('clients auth', () => {
       'getClientHistory',
       getClientHistory,
       { professionalId: 'p1', clientId: 'c1' },
+    ],
+    [
+      'getClientByEmail',
+      getClientByEmail,
+      { professionalId: 'p1', email: 'c1@example.com' },
     ],
   ])('%s denies mismatched professional', async (_, fn, data) => {
     await expect((fn as any).run({ ...baseReq, data })).rejects.toThrow(permError);
