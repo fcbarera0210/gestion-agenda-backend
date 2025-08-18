@@ -26,7 +26,7 @@ export const createInvitationCode = functions.https.onCall(async (request) => {
 export const validateAndUseCode = functions.https.onCall(async (request) => {
   const { code, userEmail } = request.data;
   const invitationRef = db.collection('invitations').doc(code);
-  return db.runTransaction(async (tx) => {
+  return db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
     const doc = await tx.get(invitationRef);
     if (!doc.exists) {
       throw new functions.https.HttpsError('not-found', 'Código inválido');
@@ -49,5 +49,5 @@ export const getPendingInvitations = functions.https.onCall(async (request) => {
     .where('createdBy', '==', professionalId)
     .where('used', '==', false)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
