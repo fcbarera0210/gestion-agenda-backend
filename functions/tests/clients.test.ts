@@ -88,4 +88,19 @@ describe('getClientByEmail', () => {
     });
     collectionSpy.mockRestore();
   });
+
+  it('requires professionalId and email', async () => {
+    await expect(
+      (getClientByEmail as any).run({
+        data: { professionalId: 'p1' },
+        rawRequest: {},
+      })
+    ).rejects.toThrow('professionalId y email son requeridos');
+    await expect(
+      (getClientByEmail as any).run({
+        data: { email: 'c1@example.com' },
+        rawRequest: {},
+      })
+    ).rejects.toThrow('professionalId y email son requeridos');
+  });
 });

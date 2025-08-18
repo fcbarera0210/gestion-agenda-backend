@@ -14,6 +14,12 @@ export const getClients = functions.https.onCall(async (request) => {
 
 export const getClientByEmail = functions.https.onCall(async (request) => {
   const { professionalId, email } = request.data;
+  if (!professionalId || !email) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'professionalId y email son requeridos'
+    );
+  }
   const snap = await db
     .collection('clients')
     .where('professionalId', '==', professionalId)
