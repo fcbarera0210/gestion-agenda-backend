@@ -14,8 +14,6 @@ export const getClients = functions.https.onCall(async (request) => {
 
 export const getClientByEmail = functions.https.onCall(async (request) => {
   const { professionalId, email } = request.data;
-  const decoded = await authenticate(request);
-  ensureProfessional(decoded, professionalId);
   const snap = await db
     .collection('clients')
     .where('professionalId', '==', professionalId)
@@ -26,8 +24,13 @@ export const getClientByEmail = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError('not-found', 'Cliente no encontrado');
   }
   const doc = snap.docs[0];
-  const { history, ...data } = doc.data() as any;
-  return { id: doc.id, ...data };
+  const data = doc.data() as any;
+  return {
+    id: doc.id,
+    email: data.email,
+    name: data.name,
+    phone: data.phone,
+  };
 });
 
 export const addClient = functions.https.onCall(async (request) => {
