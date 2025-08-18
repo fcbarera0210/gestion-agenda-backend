@@ -9,7 +9,7 @@ export const getClients = functions.https.onCall(async (request) => {
     .collection('clients')
     .where('professionalId', '==', professionalId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const getClientByEmail = functions.https.onCall(async (request) => {
@@ -57,7 +57,7 @@ export const updateClient = functions.https.onCall(async (request) => {
   const decoded = await authenticate(request);
   ensureProfessional(decoded, professionalId);
   const clientRef = db.collection('clients').doc(clientId);
-  await db.runTransaction(async (tx) => {
+  await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
     const doc = await tx.get(clientRef);
     if (!doc.exists) {
       throw new functions.https.HttpsError('not-found', 'Cliente no encontrado');
@@ -116,5 +116,5 @@ export const getClientHistory = functions.https.onCall(async (request) => {
     .collection('history')
     .orderBy('timestamp', 'desc')
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });

@@ -11,7 +11,7 @@ export const getAppointments = functions.https.onCall(async (request) => {
     .collection('appointments')
     .where('professionalId', '==', professionalId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const getAppointmentsForClient = functions.https.onCall(async (request) => {
@@ -23,7 +23,7 @@ export const getAppointmentsForClient = functions.https.onCall(async (request) =
     .where('professionalId', '==', professionalId)
     .where('clientId', '==', clientId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const addAppointment = functions.https.onCall(async (request) => {

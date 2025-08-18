@@ -9,7 +9,7 @@ export const getTimeBlocks = functions.https.onCall(async (request) => {
     .collection('timeBlocks')
     .where('professionalId', '==', professionalId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const addTimeBlock = functions.https.onCall(async (request) => {

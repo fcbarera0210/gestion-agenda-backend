@@ -26,7 +26,7 @@ export const getTeamMembers = functions.https.onCall(async (request) => {
     .collection('professionals')
     .where('teamId', '==', professionalId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const updateMemberRole = functions.https.onCall(async (request) => {

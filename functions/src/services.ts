@@ -9,7 +9,7 @@ export const getServices = functions.https.onCall(async (request) => {
     .collection('services')
     .where('professionalId', '==', professionalId)
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
 
 export const addService = functions.https.onCall(async (request) => {
@@ -39,7 +39,7 @@ export const updateService = functions.https.onCall(async (request) => {
   const decoded = await authenticate(request);
   ensureProfessional(decoded, professionalId);
   const serviceRef = db.collection('services').doc(serviceId);
-  await db.runTransaction(async (tx) => {
+  await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
     const doc = await tx.get(serviceRef);
     if (!doc.exists) {
       throw new functions.https.HttpsError('not-found', 'Servicio no encontrado');
@@ -98,5 +98,5 @@ export const getServiceHistory = functions.https.onCall(async (request) => {
     .collection('history')
     .orderBy('timestamp', 'desc')
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
 });
