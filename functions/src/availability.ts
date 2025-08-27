@@ -109,7 +109,6 @@ export const availability = functions.https.onCall(async request => {
 
     return availableSlots;
   } catch (error) {
-    console.error('Error calculating availability:', error);
     if (error instanceof functions.https.HttpsError) {
       throw error;
     }
