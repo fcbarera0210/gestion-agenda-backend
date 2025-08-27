@@ -15,18 +15,15 @@ import {
 initializeApp();
 const db = getFirestore();
 
-export const availability = functions.https.onRequest(async (req, res) => {
-  if (req.method !== 'POST') {
-    res.status(405).send('Method Not Allowed');
-    return;
-  }
-
+export const availability = functions.https.onCall(async request => {
   try {
-    const { date, professionalId, serviceId } = req.body;
+    const { date, professionalId, serviceId } = request.data;
 
     if (!date || !professionalId || !serviceId) {
-      res.status(400).send('Faltan parámetros requeridos');
-      return;
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Faltan parámetros requeridos'
+      );
     }
 
     const selectedDate = new Date(date);
@@ -37,8 +34,10 @@ export const availability = functions.https.onRequest(async (req, res) => {
     const [profDocSnap, serviceDocSnap] = await Promise.all([profDocRef.get(), serviceDocRef.get()]);
 
     if (!profDocSnap.exists || !serviceDocSnap.exists) {
-      res.status(404).send('Profesional o servicio no encontrado');
-      return;
+      throw new functions.https.HttpsError(
+        'not-found',
+        'Profesional o servicio no encontrado'
+      );
     }
 
     const professional = profDocSnap.data() as Professional;
@@ -46,8 +45,7 @@ export const availability = functions.https.onRequest(async (req, res) => {
     const daySchedule = professional.workSchedule?.[dayOfWeek] as DaySchedule | undefined;
 
     if (!daySchedule || !daySchedule.isActive) {
-      res.status(200).json([]);
-      return;
+      return [];
     }
 
     const startOfSelectedDay = startOfDay(selectedDate);
@@ -112,10 +110,16 @@ export const availability = functions.https.onRequest(async (req, res) => {
       currentTime = addMinutes(currentTime, 15);
     }
 
-    res.status(200).json(availableSlots);
+    return availableSlots;
   } catch (error) {
     console.error('Error calculating availability:', error);
-    res.status(500).send('Error interno del servidor');
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      'Error interno del servidor'
+    );
   }
 });
 
