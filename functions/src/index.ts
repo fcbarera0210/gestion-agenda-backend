@@ -12,3 +12,4 @@ export { getTimeBlocks, addTimeBlock, updateTimeBlock, deleteTimeBlock } from '.
 export { createInvitationCode, validateAndUseCode, getPendingInvitations } from './invitations';
 export { inviteNewUser, getTeamMembers, updateMemberRole, deleteTeamMember } from './team';
 export { getProfessionalProfile, updateWorkSchedule, updateProfile } from './settings';
+export { availability } from './availability';
