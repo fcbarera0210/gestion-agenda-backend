@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
+import { db } from './utils';
 import type { BreakPeriod, DaySchedule, Professional, Service } from '../src/types';
 import {
   setHours,
@@ -11,9 +11,6 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
-
-initializeApp();
-const db = getFirestore();
 
 export const availability = functions.https.onCall(async request => {
   try {
