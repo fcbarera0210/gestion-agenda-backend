@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './utils';
-import type { BreakPeriod, DaySchedule, Professional, Service } from '../src/types';
+import type { BreakPeriod, DaySchedule, Professional, Service } from './types';
 import {
   setHours,
   setMinutes,
