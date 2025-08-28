@@ -15,6 +15,7 @@ import {
 export const availability = functions.https.onCall(async request => {
   try {
     const { date, professionalId, serviceId } = request.data;
+    functions.logger.info('availability params', { date, professionalId, serviceId });
 
     if (!date || !professionalId || !serviceId) {
       throw new functions.https.HttpsError(
@@ -107,7 +108,9 @@ export const availability = functions.https.onCall(async request => {
       currentTime = addMinutes(currentTime, 15);
     }
 
-    return availableSlots;
+    const result = availableSlots.map(s => s.toISOString());
+    functions.logger.info('availability result', result);
+    return result;
   } catch (error) {
     if (error instanceof functions.https.HttpsError) {
       throw error;
