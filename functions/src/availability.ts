@@ -11,6 +11,7 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 export const availability = functions.https.onCall(async request => {
   try {
@@ -45,6 +46,13 @@ export const availability = functions.https.onCall(async request => {
     if (!daySchedule || !daySchedule.isActive) {
       return [];
     }
+
+    const professionalTimeZone =
+      (professional as any).timeZone || (professional as any).timezone;
+    const now = professionalTimeZone
+      ? toZonedTime(new Date(), professionalTimeZone)
+      : new Date();
+    const isSameDay = selectedDate.toDateString() === now.toDateString();
 
     const startOfSelectedDay = startOfDay(selectedDate);
     const endOfSelectedDay = endOfDay(selectedDate);
@@ -99,7 +107,7 @@ export const availability = functions.https.onCall(async request => {
         isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)
       );
 
-      const isFutureSlot = isAfter(currentTime, new Date());
+      const isFutureSlot = !isSameDay || isAfter(currentTime, now);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
