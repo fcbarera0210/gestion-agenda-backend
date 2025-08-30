@@ -13,3 +13,4 @@ export { createInvitationCode, validateAndUseCode, getPendingInvitations } from 
 export { inviteNewUser, getTeamMembers, updateMemberRole, deleteTeamMember } from './team';
 export { getProfessionalProfile, updateWorkSchedule, updateProfile } from './settings';
 export { availability } from './availability';
+export { cleanAvailabilityCache } from './availabilityCacheCleanup';

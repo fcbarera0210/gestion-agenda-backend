@@ -10,6 +10,9 @@ import { db } from '../src/utils';
 describe('availability', () => {
   let professionalData: any;
   let serviceData: any;
+  let availabilityCache: Record<string, any>;
+  let appointmentsGetMock: jest.Mock;
+  let timeBlocksGetMock: jest.Mock;
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2024-01-01T10:00:00Z'));
@@ -22,6 +25,9 @@ describe('availability', () => {
       },
     };
     serviceData = { duration: 30 };
+    availabilityCache = {};
+    appointmentsGetMock = jest.fn().mockResolvedValue({ docs: [] });
+    timeBlocksGetMock = jest.fn().mockResolvedValue({ docs: [] });
     (db.collection as jest.Mock).mockImplementation((name: string) => {
       if (name === 'professionals') {
         return {
@@ -29,7 +35,7 @@ describe('availability', () => {
             get: () =>
               Promise.resolve({
                 exists: true,
-data: () => professionalData,
+                data: () => professionalData,
               }),
           }),
         } as any;
@@ -40,9 +46,40 @@ data: () => professionalData,
             get: () =>
               Promise.resolve({
                 exists: true,
-data: () => serviceData,
+                data: () => serviceData,
               }),
           }),
+        } as any;
+      }
+      if (name === 'availabilityCache') {
+        return {
+          doc: (id: string) => ({
+            get: jest.fn(() =>
+              Promise.resolve(
+                availabilityCache[id]
+                  ? { exists: true, data: () => availabilityCache[id] }
+                  : { exists: false }
+              )
+            ),
+            set: jest.fn((data: any) => {
+              availabilityCache[id] = data;
+              return Promise.resolve();
+            }),
+          }),
+        } as any;
+      }
+      if (name === 'appointments') {
+        return {
+          where: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          get: appointmentsGetMock,
+        } as any;
+      }
+      if (name === 'timeBlocks') {
+        return {
+          where: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          get: timeBlocksGetMock,
         } as any;
       }
       return {
@@ -78,5 +115,18 @@ data: () => serviceData,
     });
     expect(result).toContain('2024-01-01T10:15:00.000Z');
     expect(result).not.toContain('2024-01-01T08:00:00.000Z');
+  });
+
+  it('returns cached availability when present', async () => {
+    availabilityCache['p1_s1_2024-01-01'] = {
+      slots: ['2024-01-01T12:00:00.000Z'],
+    };
+    const date = new Date('2024-01-01T00:00:00Z');
+    const result = await (availability as any).run({
+      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+    });
+    expect(result).toEqual(['2024-01-01T12:00:00.000Z']);
+    expect(appointmentsGetMock).not.toHaveBeenCalled();
+    expect(timeBlocksGetMock).not.toHaveBeenCalled();
   });
 });

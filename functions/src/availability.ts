@@ -22,6 +22,16 @@ export const availability = functions.https.onCall(async request => {
         'Faltan parámetros requeridos'
       );
     }
+    const cacheDate = new Date(date).toISOString().split('T')[0];
+    const cacheDocRef = db
+      .collection('availabilityCache')
+      .doc(`${professionalId}_${serviceId}_${cacheDate}`);
+    const cacheDoc = await cacheDocRef.get();
+    if (cacheDoc.exists) {
+      functions.logger.info('availability cache hit');
+      const cached = cacheDoc.data();
+      return cached?.slots || [];
+    }
 
     const selectedDate = new Date(date);
 
@@ -143,6 +153,13 @@ const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
 
     const result = availableSlots.map(s => s.toISOString());
     functions.logger.info('availability result', result);
+    await cacheDocRef.set({
+      professionalId,
+      serviceId,
+      date: cacheDate,
+      slots: result,
+      createdAt: Timestamp.now(),
+    });
     return result;
   } catch (error) {
     if (error instanceof functions.https.HttpsError) {
