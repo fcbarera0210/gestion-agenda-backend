@@ -3,14 +3,13 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './utils';
 import type { BreakPeriod, DaySchedule, Professional, Service } from './types';
 import {
-  setHours,
-  setMinutes,
   addMinutes,
   isBefore,
   isAfter,
   startOfDay,
   endOfDay
 } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 export const availability = functions.https.onCall(async request => {
   try {
@@ -25,11 +24,13 @@ export const availability = functions.https.onCall(async request => {
     }
 
     const selectedDate = new Date(date);
-    const dayOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][selectedDate.getDay()];
 
     const profDocRef = db.collection('professionals').doc(professionalId);
     const serviceDocRef = db.collection('services').doc(serviceId);
-    const [profDocSnap, serviceDocSnap] = await Promise.all([profDocRef.get(), serviceDocRef.get()]);
+    const [profDocSnap, serviceDocSnap] = await Promise.all([
+      profDocRef.get(),
+      serviceDocRef.get()
+    ]);
 
     if (!profDocSnap.exists || !serviceDocSnap.exists) {
       throw new functions.https.HttpsError(
@@ -40,14 +41,41 @@ export const availability = functions.https.onCall(async request => {
 
     const professional = profDocSnap.data() as Professional;
     const service = serviceDocSnap.data() as Service;
-    const daySchedule = professional.workSchedule?.[dayOfWeek] as DaySchedule | undefined;
+    const professionalTimeZone =
+      (professional as any).timeZone || (professional as any).timezone;
+    const nowUtc = new Date();
+    const now = professionalTimeZone
+      ? toZonedTime(nowUtc, professionalTimeZone)
+      : nowUtc;
+    const zonedSelectedDate = professionalTimeZone
+      ? toZonedTime(selectedDate, professionalTimeZone)
+      : selectedDate;
+    const dayOfWeek = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado'
+    ][zonedSelectedDate.getDay()];
+    const daySchedule =
+      professional.workSchedule?.[dayOfWeek] as DaySchedule | undefined;
 
     if (!daySchedule || !daySchedule.isActive) {
       return [];
     }
 
-    const startOfSelectedDay = startOfDay(selectedDate);
-    const endOfSelectedDay = endOfDay(selectedDate);
+    const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
+
+    const startOfSelectedDayZoned = startOfDay(zonedSelectedDate);
+    const endOfSelectedDayZoned = endOfDay(zonedSelectedDate);
+    const startOfSelectedDay = professionalTimeZone
+      ? fromZonedTime(startOfSelectedDayZoned, professionalTimeZone)
+      : startOfSelectedDayZoned;
+    const endOfSelectedDay = professionalTimeZone
+      ? fromZonedTime(endOfSelectedDayZoned, professionalTimeZone)
+      : endOfSelectedDayZoned;
 
     const appointmentsQuery = db
       .collection('appointments')
@@ -74,21 +102,23 @@ export const availability = functions.https.onCall(async request => {
       ...activeAppointments,
       ...timeBlocksSnapshot.docs.map(d => ({ start: d.data().start.toDate(), end: d.data().end.toDate() })),
       ...(daySchedule?.breaks ?? []).map(({ start, end }: BreakPeriod) => ({
-        start: setMinutes(
-          setHours(startOfSelectedDay, parseInt(start.split(':')[0])),
-          parseInt(start.split(':')[1])
+        start: addMinutes(
+          startOfSelectedDay,
+          parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1])
         ),
-        end: setMinutes(
-          setHours(startOfSelectedDay, parseInt(end.split(':')[0])),
-          parseInt(end.split(':')[1])
+        end: addMinutes(
+          startOfSelectedDay,
+          parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1])
         )
       }))
     ];
 
     const availableSlots: Date[] = [];
     const { start, end } = daySchedule.workHours;
-    let currentTime = setMinutes(setHours(startOfSelectedDay, parseInt(start.split(':')[0])), parseInt(start.split(':')[1]));
-    const endTime = setMinutes(setHours(startOfSelectedDay, parseInt(end.split(':')[0])), parseInt(end.split(':')[1]));
+    const startMinutes = parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]);
+    const endMinutes = parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1]);
+    let currentTime = addMinutes(startOfSelectedDay, startMinutes);
+    const endTime = addMinutes(startOfSelectedDay, endMinutes);
     const serviceDuration = service.duration;
 
     while (isBefore(currentTime, endTime)) {
@@ -99,7 +129,7 @@ export const availability = functions.https.onCall(async request => {
         isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)
       );
 
-      const isFutureSlot = isAfter(currentTime, new Date());
+      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
