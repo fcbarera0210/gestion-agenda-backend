@@ -47,6 +47,7 @@ data: () => serviceData,
       }
       return {
         where: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: [] }),
       } as any;
     });

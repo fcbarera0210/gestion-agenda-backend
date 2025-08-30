@@ -81,13 +81,16 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
       .collection('appointments')
       .where('professionalId', '==', professionalId)
       .where('start', '>=', Timestamp.fromDate(startOfSelectedDay))
-      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay));
+      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay))
+      .where('status', '!=', 'cancelled')
+      .select('start', 'end');
 
     const timeBlocksQuery = db
       .collection('timeBlocks')
       .where('professionalId', '==', professionalId)
       .where('start', '>=', Timestamp.fromDate(startOfSelectedDay))
-      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay));
+      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay))
+      .select('start', 'end');
 
     const [appointmentsSnapshot, timeBlocksSnapshot] = await Promise.all([
       appointmentsQuery.get(),
