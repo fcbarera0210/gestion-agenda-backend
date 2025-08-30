@@ -8,8 +8,20 @@ import { availability } from '../src/availability';
 import { db } from '../src/utils';
 
 describe('availability', () => {
+  let professionalData: any;
+  let serviceData: any;
+
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2024-01-01T10:00:00Z'));
+    professionalData = {
+      workSchedule: {
+        lunes: {
+          isActive: true,
+          workHours: { start: '09:00', end: '12:00' },
+        },
+      },
+    };
+    serviceData = { duration: 30 };
     (db.collection as jest.Mock).mockImplementation((name: string) => {
       if (name === 'professionals') {
         return {
@@ -17,14 +29,7 @@ describe('availability', () => {
             get: () =>
               Promise.resolve({
                 exists: true,
-                data: () => ({
-                  workSchedule: {
-                    lunes: {
-                      isActive: true,
-                      workHours: { start: '09:00', end: '12:00' },
-                    },
-                  },
-                }),
+data: () => professionalData,
               }),
           }),
         } as any;
@@ -35,7 +40,7 @@ describe('availability', () => {
             get: () =>
               Promise.resolve({
                 exists: true,
-                data: () => ({ duration: 30 }),
+data: () => serviceData,
               }),
           }),
         } as any;
@@ -58,5 +63,19 @@ describe('availability', () => {
       data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
     });
     expect(result).toContain('2024-01-01T10:15:00.000Z');
+  });
+
+  it('ignores past slots when professional timezone differs', async () => {
+    professionalData.timeZone = 'America/Los_Angeles';
+    professionalData.workSchedule.lunes.workHours = {
+      start: '00:00',
+      end: '03:00',
+    };
+    const date = new Date('2024-01-01T08:00:00Z');
+    const result = await (availability as any).run({
+      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+    });
+    expect(result).toContain('2024-01-01T10:15:00.000Z');
+    expect(result).not.toContain('2024-01-01T08:00:00.000Z');
   });
 });
