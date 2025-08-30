@@ -126,6 +126,8 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
       }))
     ];
 
+    existingEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+
     const availableSlots: Date[] = [];
     const { start, end } = daySchedule.workHours;
     const startMinutes = parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]);
@@ -133,16 +135,26 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     let currentTime = addMinutes(startOfSelectedDay, startMinutes);
     const endTime = addMinutes(startOfSelectedDay, endMinutes);
     const serviceDuration = service.duration;
-
+    let i = 0;
     while (isBefore(currentTime, endTime)) {
       const slotEnd = addMinutes(currentTime, serviceDuration);
       if (isAfter(slotEnd, endTime)) break;
 
-      const isOverlapping = existingEvents.some(event =>
-        isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)
-      );
+      while (i < existingEvents.length && !isAfter(existingEvents[i].end, currentTime)) {
+        i++;
+      }
 
-const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
+      let isOverlapping = false;
+      for (let j = i; j < existingEvents.length; j++) {
+        const event = existingEvents[j];
+        if (!isBefore(event.start, slotEnd)) break;
+        if (isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)) {
+          isOverlapping = true;
+          break;
+        }
+      }
+
+      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
