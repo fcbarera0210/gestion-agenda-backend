@@ -66,7 +66,7 @@ export const availability = functions.https.onCall(async request => {
       return [];
     }
 
-    const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
+const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
 
     const startOfSelectedDayZoned = startOfDay(zonedSelectedDate);
     const endOfSelectedDayZoned = endOfDay(zonedSelectedDate);
@@ -129,7 +129,7 @@ export const availability = functions.https.onCall(async request => {
         isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)
       );
 
-      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
+const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));

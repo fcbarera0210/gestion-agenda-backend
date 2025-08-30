@@ -29,7 +29,7 @@ describe('availability', () => {
             get: () =>
               Promise.resolve({
                 exists: true,
-                data: () => professionalData,
+data: () => professionalData,
               }),
           }),
         } as any;
@@ -40,7 +40,7 @@ describe('availability', () => {
             get: () =>
               Promise.resolve({
                 exists: true,
-                data: () => serviceData,
+data: () => serviceData,
               }),
           }),
         } as any;
