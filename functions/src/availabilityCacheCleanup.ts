@@ -1,18 +1,16 @@
-import * as functions from 'firebase-functions/v1';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './utils';
 
-export const cleanAvailabilityCache = functions.pubsub
-  .schedule('every 24 hours')
-  .onRun(async () => {
-    const cutoff = Timestamp.fromDate(
-      new Date(Date.now() - 24 * 60 * 60 * 1000)
-    );
-    const snapshot = await db
-      .collection('availabilityCache')
-      .where('createdAt', '<', cutoff)
-      .get();
-    const batch = db.batch();
-    snapshot.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-  });
+export const cleanAvailabilityCache = onSchedule('every 24 hours', async () => {
+  const cutoff = Timestamp.fromDate(
+    new Date(Date.now() - 24 * 60 * 60 * 1000)
+  );
+  const snapshot = await db
+    .collection('availabilityCache')
+    .where('createdAt', '<', cutoff)
+    .get();
+  const batch = db.batch();
+  snapshot.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+});

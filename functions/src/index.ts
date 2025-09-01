@@ -1,6 +1,8 @@
-import * as functions from 'firebase-functions/v1';
+import { setGlobalOptions } from 'firebase-functions/v2';
+import { onCall } from 'firebase-functions/v2/https';
 import { availability as availabilityHandler } from './availability';
 
+setGlobalOptions({ region: 'southamerica-east1', memory: '256MiB', minInstances: 1 });
 export {
   getAppointments,
   getAppointmentsForClient,
@@ -24,10 +26,7 @@ export { createInvitationCode, validateAndUseCode, getPendingInvitations } from 
 export { inviteNewUser, getTeamMembers, updateMemberRole, deleteTeamMember } from './team';
 export { getProfessionalProfile, updateWorkSchedule, updateProfile } from './settings';
 
-export const availability = functions
-  .region('southamerica-east1')
-  .runWith({ minInstances: 1, memory: '256MB' })
-  .https.onCall(availabilityHandler);
+export const availability = onCall(availabilityHandler);
 
 export { cleanAvailabilityCache } from './availabilityCacheCleanup';
 

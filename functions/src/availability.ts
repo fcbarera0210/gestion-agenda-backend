@@ -1,4 +1,5 @@
-import * as functions from 'firebase-functions';
+import { logger } from 'firebase-functions/v2';
+import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './utils';
 import type { BreakPeriod, DaySchedule, Professional, Service } from './types';
@@ -12,14 +13,14 @@ import {
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 export const availability = async (
-  request: functions.https.CallableRequest
+request: CallableRequest
 ) => {
   try {
     const { date, professionalId, serviceId } = request.data;
-    functions.logger.info('availability params', { date, professionalId, serviceId });
+    logger.info('availability params', { date, professionalId, serviceId });
 
     if (!date || !professionalId || !serviceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Faltan parámetros requeridos'
       );
@@ -30,7 +31,7 @@ export const availability = async (
       .doc(`${professionalId}_${serviceId}_${cacheDate}`);
     const cacheDoc = await cacheDocRef.get();
     if (cacheDoc.exists) {
-      functions.logger.info('availability cache hit');
+logger.info('availability cache hit');
       const cached = cacheDoc.data();
       return cached?.slots || [];
     }
@@ -45,7 +46,7 @@ export const availability = async (
     ]);
 
     if (!profDocSnap.exists || !serviceDocSnap.exists) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'not-found',
         'Profesional o servicio no encontrado'
       );
@@ -166,7 +167,7 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     }
 
     const result = availableSlots.map(s => s.toISOString());
-    functions.logger.info('availability result', result);
+logger.info('availability result', result);
     await cacheDocRef.set({
       professionalId,
       serviceId,
@@ -176,10 +177,10 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     });
     return result;
   } catch (error) {
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'internal',
       'Error interno del servidor'
     );
