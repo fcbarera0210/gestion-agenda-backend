@@ -13,7 +13,7 @@ import {
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 export const availability = async (
-  request: CallableRequest
+request: CallableRequest
 ) => {
   try {
     const { date, professionalId, serviceId } = request.data;
@@ -31,7 +31,7 @@ export const availability = async (
       .doc(`${professionalId}_${serviceId}_${cacheDate}`);
     const cacheDoc = await cacheDocRef.get();
     if (cacheDoc.exists) {
-      logger.info('availability cache hit');
+logger.info('availability cache hit');
       const cached = cacheDoc.data();
       return cached?.slots || [];
     }
@@ -167,7 +167,7 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     }
 
     const result = availableSlots.map(s => s.toISOString());
-    logger.info('availability result', result);
+logger.info('availability result', result);
     await cacheDocRef.set({
       professionalId,
       serviceId,
