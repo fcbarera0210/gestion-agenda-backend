@@ -1,4 +1,5 @@
-import * as functions from 'firebase-functions';
+import { logger } from 'firebase-functions/v2';
+import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from './utils';
 import type { BreakPeriod, DaySchedule, Professional, Service } from './types';
@@ -11,16 +12,28 @@ import {
 } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
-export const availability = functions.https.onCall(async request => {
+export const availability = async (
+  request: CallableRequest
+) => {
   try {
     const { date, professionalId, serviceId } = request.data;
-    functions.logger.info('availability params', { date, professionalId, serviceId });
+    logger.info('availability params', { date, professionalId, serviceId });
 
     if (!date || !professionalId || !serviceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Faltan parámetros requeridos'
       );
+    }
+    const cacheDate = new Date(date).toISOString().split('T')[0];
+    const cacheDocRef = db
+      .collection('availabilityCache')
+      .doc(`${professionalId}_${serviceId}_${cacheDate}`);
+    const cacheDoc = await cacheDocRef.get();
+    if (cacheDoc.exists) {
+      logger.info('availability cache hit');
+      const cached = cacheDoc.data();
+      return cached?.slots || [];
     }
 
     const selectedDate = new Date(date);
@@ -33,7 +46,7 @@ export const availability = functions.https.onCall(async request => {
     ]);
 
     if (!profDocSnap.exists || !serviceDocSnap.exists) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'not-found',
         'Profesional o servicio no encontrado'
       );
@@ -81,13 +94,16 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
       .collection('appointments')
       .where('professionalId', '==', professionalId)
       .where('start', '>=', Timestamp.fromDate(startOfSelectedDay))
-      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay));
+      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay))
+      .where('status', '!=', 'cancelled')
+      .select('start', 'end');
 
     const timeBlocksQuery = db
       .collection('timeBlocks')
       .where('professionalId', '==', professionalId)
       .where('start', '>=', Timestamp.fromDate(startOfSelectedDay))
-      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay));
+      .where('start', '<=', Timestamp.fromDate(endOfSelectedDay))
+      .select('start', 'end');
 
     const [appointmentsSnapshot, timeBlocksSnapshot] = await Promise.all([
       appointmentsQuery.get(),
@@ -113,6 +129,8 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
       }))
     ];
 
+    existingEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+
     const availableSlots: Date[] = [];
     const { start, end } = daySchedule.workHours;
     const startMinutes = parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]);
@@ -120,16 +138,26 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     let currentTime = addMinutes(startOfSelectedDay, startMinutes);
     const endTime = addMinutes(startOfSelectedDay, endMinutes);
     const serviceDuration = service.duration;
-
+    let i = 0;
     while (isBefore(currentTime, endTime)) {
       const slotEnd = addMinutes(currentTime, serviceDuration);
       if (isAfter(slotEnd, endTime)) break;
 
-      const isOverlapping = existingEvents.some(event =>
-        isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)
-      );
+      while (i < existingEvents.length && !isAfter(existingEvents[i].end, currentTime)) {
+        i++;
+      }
 
-const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
+      let isOverlapping = false;
+      for (let j = i; j < existingEvents.length; j++) {
+        const event = existingEvents[j];
+        if (!isBefore(event.start, slotEnd)) break;
+        if (isBefore(currentTime, event.end) && isAfter(slotEnd, event.start)) {
+          isOverlapping = true;
+          break;
+        }
+      }
+
+      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
@@ -139,16 +167,23 @@ const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
     }
 
     const result = availableSlots.map(s => s.toISOString());
-    functions.logger.info('availability result', result);
+    logger.info('availability result', result);
+    await cacheDocRef.set({
+      professionalId,
+      serviceId,
+      date: cacheDate,
+      slots: result,
+      createdAt: Timestamp.now(),
+    });
     return result;
   } catch (error) {
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'internal',
       'Error interno del servidor'
     );
   }
-});
+};
 
