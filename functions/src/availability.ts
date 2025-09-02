@@ -10,7 +10,7 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 export const availability = async (
 request: CallableRequest
@@ -25,8 +25,7 @@ request: CallableRequest
         'Faltan parámetros requeridos'
       );
     }
-    const selectedDate = new Date(date);
-    const cacheDate = selectedDate.toISOString().split('T')[0];
+const cacheDate = date;
     const cacheDocRef = db
       .collection('availabilityCache')
       .doc(`${professionalId}_${serviceId}_${cacheDate}`);
@@ -44,17 +43,29 @@ request: CallableRequest
     const professional = profDocSnap.data() as Professional;
     const professionalTimeZone =
       (professional as any).timeZone || (professional as any).timezone;
+
     const nowUtc = new Date();
     const nowForComparison = professionalTimeZone
-      ? fromZonedTime(toZonedTime(nowUtc, professionalTimeZone), professionalTimeZone)
+? fromZonedTime(
+          formatInTimeZone(
+            nowUtc,
+            professionalTimeZone,
+            "yyyy-MM-dd'T'HH:mm:ssXXX"
+          ),
+          professionalTimeZone
+        )
       : nowUtc;
-    const now = professionalTimeZone
-      ? toZonedTime(nowUtc, professionalTimeZone)
-      : nowUtc;
+    const currentDateInZone = professionalTimeZone
+      ? formatInTimeZone(nowUtc, professionalTimeZone, 'yyyy-MM-dd')
+      : nowUtc.toISOString().split('T')[0];
+
+    const selectedDate = professionalTimeZone
+      ? fromZonedTime(`${date}T00:00:00`, professionalTimeZone)
+      : new Date(`${date}T00:00:00`);
     const zonedSelectedDate = professionalTimeZone
       ? toZonedTime(selectedDate, professionalTimeZone)
       : selectedDate;
-    const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
+const isSameDay = cacheDate === currentDateInZone;
 
     const cacheDoc = await cacheDocRef.get();
     if (cacheDoc.exists && !isSameDay) {

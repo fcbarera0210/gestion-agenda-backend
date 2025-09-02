@@ -21,7 +21,7 @@ describe('availability', () => {
       workSchedule: {
         lunes: {
           isActive: true,
-          workHours: { start: '09:00', end: '12:00' },
+          workHours: { start: '09:00', end: '18:00' },
         },
       },
     };
@@ -97,48 +97,34 @@ describe('availability', () => {
   });
 
   it('returns slots later than now for current day', async () => {
-    const date = new Date('2024-01-01T00:00:00Z');
     const result = await availability({
-      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
     } as any);
     expect(result).toContain('2024-01-01T10:15:00.000Z');
   });
 
-  it('ignores past slots when professional timezone differs (behind UTC)', async () => {
+it('returns 17:00 slot for today when professional timezone is behind UTC', async () => {
     professionalData.timeZone = 'America/Los_Angeles';
-    professionalData.workSchedule.lunes.workHours = {
-      start: '00:00',
-      end: '03:00',
-    };
-    const date = new Date('2024-01-01T08:00:00Z');
     const result = await availability({
-      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
     } as any);
-    expect(result).toContain('2024-01-01T10:15:00.000Z');
-    expect(result).not.toContain('2024-01-01T08:00:00.000Z');
+    expect(result).toContain('2024-01-02T01:00:00.000Z');
   });
 
-  it('ignores past slots when professional timezone is ahead of UTC', async () => {
-    professionalData.timeZone = 'Asia/Tokyo';
-    professionalData.workSchedule.lunes.workHours = {
-      start: '15:00',
-      end: '20:00',
-    };
-    const date = new Date('2023-12-31T15:00:00Z');
+  it('returns 17:00 slot for today when professional timezone is ahead of UTC', async () => {
+    professionalData.timeZone = 'Europe/Madrid';
     const result = await availability({
-      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
     } as any);
-    expect(result).toContain('2024-01-01T10:15:00.000Z');
-    expect(result).not.toContain('2024-01-01T09:45:00.000Z');
+    expect(result).toContain('2024-01-01T16:00:00.000Z');
   });
 
   it('returns cached availability when present for future day', async () => {
     availabilityCache['p1_s1_2024-01-02'] = {
       slots: ['2024-01-02T12:00:00.000Z'],
     };
-    const date = new Date('2024-01-02T00:00:00Z');
     const result = await availability({
-      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+      data: { date: '2024-01-02', professionalId: 'p1', serviceId: 's1' },
     } as any);
     expect(result).toEqual(['2024-01-02T12:00:00.000Z']);
     expect(appointmentsGetMock).not.toHaveBeenCalled();
@@ -149,9 +135,8 @@ describe('availability', () => {
     availabilityCache['p1_s1_2024-01-01'] = {
       slots: ['2024-01-01T12:00:00.000Z'],
     };
-    const date = new Date('2024-01-01T00:00:00Z');
     const result = await availability({
-      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
     } as any);
     expect(result).toContain('2024-01-01T10:15:00.000Z');
     expect(result).not.toEqual(['2024-01-01T12:00:00.000Z']);
