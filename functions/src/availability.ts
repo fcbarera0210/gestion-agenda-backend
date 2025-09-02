@@ -45,6 +45,9 @@ request: CallableRequest
     const professionalTimeZone =
       (professional as any).timeZone || (professional as any).timezone;
     const nowUtc = new Date();
+    const nowForComparison = professionalTimeZone
+      ? fromZonedTime(toZonedTime(nowUtc, professionalTimeZone), professionalTimeZone)
+      : nowUtc;
     const now = professionalTimeZone
       ? toZonedTime(nowUtc, professionalTimeZone)
       : nowUtc;
@@ -163,7 +166,8 @@ request: CallableRequest
         }
       }
 
-      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
+      const isFutureSlot =
+        !isSameDay || isAfter(currentTime, nowForComparison);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
