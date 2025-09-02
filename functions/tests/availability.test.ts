@@ -13,6 +13,7 @@ describe('availability', () => {
   let availabilityCache: Record<string, any>;
   let appointmentsGetMock: jest.Mock;
   let timeBlocksGetMock: jest.Mock;
+  let availabilitySetMock: jest.Mock;
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2024-01-01T10:00:00Z'));
@@ -61,10 +62,10 @@ describe('availability', () => {
                   : { exists: false }
               )
             ),
-            set: jest.fn((data: any) => {
+            set: (availabilitySetMock = jest.fn((data: any) => {
               availabilityCache[id] = data;
               return Promise.resolve();
-            }),
+            })),
           }),
         } as any;
       }
@@ -117,7 +118,20 @@ describe('availability', () => {
     expect(result).not.toContain('2024-01-01T08:00:00.000Z');
   });
 
-  it('returns cached availability when present', async () => {
+  it('returns cached availability when present for future day', async () => {
+    availabilityCache['p1_s1_2024-01-02'] = {
+      slots: ['2024-01-02T12:00:00.000Z'],
+    };
+    const date = new Date('2024-01-02T00:00:00Z');
+    const result = await availability({
+      data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
+    } as any);
+    expect(result).toEqual(['2024-01-02T12:00:00.000Z']);
+    expect(appointmentsGetMock).not.toHaveBeenCalled();
+    expect(timeBlocksGetMock).not.toHaveBeenCalled();
+  });
+
+  it('recalculates availability for same day ignoring cache', async () => {
     availabilityCache['p1_s1_2024-01-01'] = {
       slots: ['2024-01-01T12:00:00.000Z'],
     };
@@ -125,8 +139,10 @@ describe('availability', () => {
     const result = await availability({
       data: { date: date.toISOString(), professionalId: 'p1', serviceId: 's1' },
     } as any);
-    expect(result).toEqual(['2024-01-01T12:00:00.000Z']);
-    expect(appointmentsGetMock).not.toHaveBeenCalled();
-    expect(timeBlocksGetMock).not.toHaveBeenCalled();
+    expect(result).toContain('2024-01-01T10:15:00.000Z');
+    expect(result).not.toEqual(['2024-01-01T12:00:00.000Z']);
+    expect(appointmentsGetMock).toHaveBeenCalled();
+    expect(timeBlocksGetMock).toHaveBeenCalled();
+    expect(availabilitySetMock).not.toHaveBeenCalled();
   });
 });
