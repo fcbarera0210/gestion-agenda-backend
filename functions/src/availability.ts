@@ -25,7 +25,7 @@ request: CallableRequest
         'Faltan parámetros requeridos'
       );
     }
-    const cacheDate = date;
+const cacheDate = date;
     const cacheDocRef = db
       .collection('availabilityCache')
       .doc(`${professionalId}_${serviceId}_${cacheDate}`);
@@ -46,7 +46,7 @@ request: CallableRequest
 
     const nowUtc = new Date();
     const nowForComparison = professionalTimeZone
-      ? fromZonedTime(
+? fromZonedTime(
           formatInTimeZone(
             nowUtc,
             professionalTimeZone,
@@ -65,7 +65,7 @@ request: CallableRequest
     const zonedSelectedDate = professionalTimeZone
       ? toZonedTime(selectedDate, professionalTimeZone)
       : selectedDate;
-    const isSameDay = cacheDate === currentDateInZone;
+const isSameDay = cacheDate === currentDateInZone;
 
     const cacheDoc = await cacheDocRef.get();
     if (cacheDoc.exists && !isSameDay) {

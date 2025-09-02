@@ -103,7 +103,7 @@ describe('availability', () => {
     expect(result).toContain('2024-01-01T10:15:00.000Z');
   });
 
-  it('returns 17:00 slot for today when professional timezone is behind UTC', async () => {
+it('returns 17:00 slot for today when professional timezone is behind UTC', async () => {
     professionalData.timeZone = 'America/Los_Angeles';
     const result = await availability({
       data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
