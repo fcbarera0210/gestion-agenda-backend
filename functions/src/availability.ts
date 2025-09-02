@@ -25,27 +25,16 @@ request: CallableRequest
         'Faltan parámetros requeridos'
       );
     }
-    const cacheDate = new Date(date).toISOString().split('T')[0];
+    const selectedDate = new Date(date);
+    const cacheDate = selectedDate.toISOString().split('T')[0];
     const cacheDocRef = db
       .collection('availabilityCache')
       .doc(`${professionalId}_${serviceId}_${cacheDate}`);
-    const cacheDoc = await cacheDocRef.get();
-    if (cacheDoc.exists) {
-logger.info('availability cache hit');
-      const cached = cacheDoc.data();
-      return cached?.slots || [];
-    }
-
-    const selectedDate = new Date(date);
 
     const profDocRef = db.collection('professionals').doc(professionalId);
-    const serviceDocRef = db.collection('services').doc(serviceId);
-    const [profDocSnap, serviceDocSnap] = await Promise.all([
-      profDocRef.get(),
-      serviceDocRef.get()
-    ]);
+    const profDocSnap = await profDocRef.get();
 
-    if (!profDocSnap.exists || !serviceDocSnap.exists) {
+    if (!profDocSnap.exists) {
       throw new HttpsError(
         'not-found',
         'Profesional o servicio no encontrado'
@@ -53,16 +42,38 @@ logger.info('availability cache hit');
     }
 
     const professional = profDocSnap.data() as Professional;
-    const service = serviceDocSnap.data() as Service;
     const professionalTimeZone =
       (professional as any).timeZone || (professional as any).timezone;
     const nowUtc = new Date();
+    const nowForComparison = professionalTimeZone
+      ? fromZonedTime(toZonedTime(nowUtc, professionalTimeZone), professionalTimeZone)
+      : nowUtc;
     const now = professionalTimeZone
       ? toZonedTime(nowUtc, professionalTimeZone)
       : nowUtc;
     const zonedSelectedDate = professionalTimeZone
       ? toZonedTime(selectedDate, professionalTimeZone)
       : selectedDate;
+    const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
+
+    const cacheDoc = await cacheDocRef.get();
+    if (cacheDoc.exists && !isSameDay) {
+      logger.info('availability cache hit');
+      const cached = cacheDoc.data();
+      return cached?.slots || [];
+    }
+
+    const serviceDocRef = db.collection('services').doc(serviceId);
+    const serviceDocSnap = await serviceDocRef.get();
+
+    if (!serviceDocSnap.exists) {
+      throw new HttpsError(
+        'not-found',
+        'Profesional o servicio no encontrado'
+      );
+    }
+
+    const service = serviceDocSnap.data() as Service;
     const dayOfWeek = [
       'domingo',
       'lunes',
@@ -78,8 +89,6 @@ logger.info('availability cache hit');
     if (!daySchedule || !daySchedule.isActive) {
       return [];
     }
-
-const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
 
     const startOfSelectedDayZoned = startOfDay(zonedSelectedDate);
     const endOfSelectedDayZoned = endOfDay(zonedSelectedDate);
@@ -157,7 +166,8 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
         }
       }
 
-      const isFutureSlot = !isSameDay || isAfter(currentTime, nowUtc);
+      const isFutureSlot =
+        !isSameDay || isAfter(currentTime, nowForComparison);
 
       if (!isOverlapping && isFutureSlot) {
         availableSlots.push(new Date(currentTime));
@@ -167,14 +177,16 @@ const isSameDay = zonedSelectedDate.toDateString() === now.toDateString();
     }
 
     const result = availableSlots.map(s => s.toISOString());
-logger.info('availability result', result);
-    await cacheDocRef.set({
-      professionalId,
-      serviceId,
-      date: cacheDate,
-      slots: result,
-      createdAt: Timestamp.now(),
-    });
+    logger.info('availability result', result);
+    if (!isSameDay) {
+      await cacheDocRef.set({
+        professionalId,
+        serviceId,
+        date: cacheDate,
+        slots: result,
+        createdAt: Timestamp.now(),
+      });
+    }
     return result;
   } catch (error) {
     if (error instanceof HttpsError) {

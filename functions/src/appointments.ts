@@ -1,7 +1,13 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
-import { db, authenticate, ensureProfessional, timestamp } from './utils';
+import {
+  db,
+  authenticate,
+  ensureProfessional,
+  timestamp,
+  invalidateAvailabilityCache,
+} from './utils';
 
 export const getAppointments = functions.https.onCall(async (request) => {
   const { professionalId } = request.data;
@@ -38,6 +44,14 @@ export const addAppointment = functions.https.onCall(async (request) => {
     professionalId,
     createdAt: timestamp(),
   });
+  const startDate = appointment.start?.toDate
+    ? appointment.start.toDate()
+    : new Date(appointment.start);
+  await invalidateAvailabilityCache(
+    professionalId,
+    appointment.serviceId,
+    startDate
+  );
   return { id: docRef.id };
 });
 
@@ -61,6 +75,21 @@ export const updateAppointment = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError('invalid-argument', 'Tipo de cita inválido');
   }
   await docRef.update({ ...updateData, updatedAt: timestamp() });
+  const originalDate = appointment.start?.toDate
+    ? appointment.start.toDate()
+    : new Date(appointment.start);
+  await invalidateAvailabilityCache(
+    professionalId,
+    appointment.serviceId,
+    originalDate
+  );
+  if (updateData.start || updateData.serviceId) {
+    const newDate = updateData.start?.toDate
+      ? updateData.start.toDate()
+      : new Date(updateData.start ?? appointment.start);
+    const newService = updateData.serviceId || appointment.serviceId;
+    await invalidateAvailabilityCache(professionalId, newService, newDate);
+  }
   return { success: true };
 });
 
@@ -76,7 +105,16 @@ export const deleteAppointment = functions.https.onCall(async (request) => {
   if (snap.data()!.professionalId !== professionalId) {
     throw new functions.https.HttpsError('permission-denied', 'No autorizado');
   }
+  const appointment = snap.data()!;
   await docRef.delete();
+  const startDate = appointment.start?.toDate
+    ? appointment.start.toDate()
+    : new Date(appointment.start);
+  await invalidateAvailabilityCache(
+    professionalId,
+    appointment.serviceId,
+    startDate
+  );
   return { success: true };
 });
 
@@ -180,6 +218,7 @@ export const createBooking = functions.https.onCall(async (request) => {
       color: { primary: '#ffc107', secondary: '#FFF3CD' },
       type,
     });
+    await invalidateAvailabilityCache(professionalId, serviceId, slotDate);
     return { success: true, message: 'Reserva creada exitosamente.' };
   } catch (error) {
     throw new functions.https.HttpsError(

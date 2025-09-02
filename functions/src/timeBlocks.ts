@@ -1,5 +1,11 @@
 import * as functions from 'firebase-functions';
-import { db, authenticate, ensureProfessional, timestamp } from './utils';
+import {
+  db,
+  authenticate,
+  ensureProfessional,
+  timestamp,
+  invalidateAvailabilityCache,
+} from './utils';
 
 export const getTimeBlocks = functions.https.onCall(async (request) => {
   const { professionalId } = request.data;
@@ -21,6 +27,16 @@ export const addTimeBlock = functions.https.onCall(async (request) => {
     professionalId,
     createdAt: timestamp(),
   });
+  if (block.serviceId && block.start) {
+    const startDate = block.start?.toDate
+      ? block.start.toDate()
+      : new Date(block.start);
+    await invalidateAvailabilityCache(
+      professionalId,
+      block.serviceId,
+      startDate
+    );
+  }
   return { id: docRef.id };
 });
 
@@ -36,7 +52,27 @@ export const updateTimeBlock = functions.https.onCall(async (request) => {
   if (doc.data()!.professionalId !== professionalId) {
     throw new functions.https.HttpsError('permission-denied', 'No autorizado');
   }
+  const block = doc.data()!;
   await blockRef.update({ ...updates, updatedAt: timestamp() });
+  if (block.serviceId && block.start) {
+    const originalDate = block.start?.toDate
+      ? block.start.toDate()
+      : new Date(block.start);
+    await invalidateAvailabilityCache(
+      professionalId,
+      block.serviceId,
+      originalDate
+    );
+  }
+  if (updates.start || updates.serviceId) {
+    const newDate = updates.start?.toDate
+      ? updates.start.toDate()
+      : new Date(updates.start ?? block.start);
+    const newService = updates.serviceId || block.serviceId;
+    if (newService && newDate) {
+      await invalidateAvailabilityCache(professionalId, newService, newDate);
+    }
+  }
   return { success: true };
 });
 
@@ -52,6 +88,17 @@ export const deleteTimeBlock = functions.https.onCall(async (request) => {
   if (doc.data()!.professionalId !== professionalId) {
     throw new functions.https.HttpsError('permission-denied', 'No autorizado');
   }
+  const block = doc.data()!;
   await blockRef.delete();
+  if (block.serviceId && block.start) {
+    const startDate = block.start?.toDate
+      ? block.start.toDate()
+      : new Date(block.start);
+    await invalidateAvailabilityCache(
+      professionalId,
+      block.serviceId,
+      startDate
+    );
+  }
   return { success: true };
 });
