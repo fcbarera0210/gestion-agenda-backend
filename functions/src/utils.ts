@@ -25,3 +25,15 @@ export function ensureProfessional(decoded: admin.auth.DecodedIdToken, professio
 }
 
 export const timestamp = admin.firestore.FieldValue.serverTimestamp;
+
+export async function invalidateAvailabilityCache(
+  professionalId: string,
+  serviceId: string,
+  date: Date | string
+) {
+  const cacheDate = new Date(date).toISOString().split('T')[0];
+  await db
+    .collection('availabilityCache')
+    .doc(`${professionalId}_${serviceId}_${cacheDate}`)
+    .delete();
+}
