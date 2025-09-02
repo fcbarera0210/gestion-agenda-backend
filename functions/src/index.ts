@@ -2,7 +2,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { onCall } from 'firebase-functions/v2/https';
 import { availability as availabilityHandler } from './availability';
 
-setGlobalOptions({ region: 'southamerica-east1', memory: '256MiB', minInstances: 1 });
+setGlobalOptions({ region: 'southamerica-east1', memory: '256MiB', minInstances: 0 });
 export {
   getAppointments,
   getAppointmentsForClient,
