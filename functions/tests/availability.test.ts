@@ -104,6 +104,15 @@ describe('availability', () => {
     expect(result).toContain('2024-01-01T10:15:00.000Z');
   });
 
+  it('uses service slotStep when provided', async () => {
+    serviceData.slotStep = 10;
+    const result = await availability({
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
+    } as any);
+    expect(result).toContain('2024-01-01T10:10:00.000Z');
+    expect(result).not.toContain('2024-01-01T10:15:00.000Z');
+  });
+
 it('returns 17:00 slot for today when professional timezone is behind UTC', async () => {
     professionalData.timeZone = 'America/Los_Angeles';
     const result = await availability({

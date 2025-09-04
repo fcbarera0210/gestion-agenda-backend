@@ -85,6 +85,7 @@ const isSameDay = cacheDate === currentDateInZone;
     }
 
     const service = serviceDocSnap.data() as Service;
+    const slotStep = service.slotStep ?? professional.slotStep ?? 15;
     const dayOfWeek = [
       'domingo',
       'lunes',
@@ -184,7 +185,7 @@ const isSameDay = cacheDate === currentDateInZone;
         availableSlots.push(new Date(currentTime));
       }
 
-      currentTime = addMinutes(currentTime, 15);
+      currentTime = addMinutes(currentTime, slotStep);
     }
 
     const result = availableSlots.map(s => s.toISOString());

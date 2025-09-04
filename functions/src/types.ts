@@ -14,8 +14,10 @@ export interface DaySchedule {
 
 export interface Professional {
   workSchedule?: Record<string, DaySchedule>;
+  slotStep?: number;
 }
 
 export interface Service {
   duration: number;
+  slotStep?: number;
 }
