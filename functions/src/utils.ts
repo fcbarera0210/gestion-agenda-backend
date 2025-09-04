@@ -37,3 +37,14 @@ export async function invalidateAvailabilityCache(
     .doc(`${professionalId}_${serviceId}_${cacheDate}`)
     .delete();
 }
+
+export async function invalidateCacheForDocument(
+  data: FirebaseFirestore.DocumentData | undefined
+) {
+  if (!data) return;
+  const { professionalId, serviceId, start } = data as any;
+  if (professionalId && serviceId && start) {
+    const startDate = start.toDate ? start.toDate() : new Date(start);
+    await invalidateAvailabilityCache(professionalId, serviceId, startDate);
+  }
+}
