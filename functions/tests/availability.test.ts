@@ -6,6 +6,7 @@ jest.mock('../src/utils', () => ({
 
 import { availability } from '../src/availability';
 import { db } from '../src/utils';
+import { Timestamp } from 'firebase-admin/firestore';
 
 describe('availability', () => {
   let professionalData: any;
@@ -103,6 +104,15 @@ describe('availability', () => {
     expect(result).toContain('2024-01-01T10:15:00.000Z');
   });
 
+  it('uses service slotStep when provided', async () => {
+    serviceData.slotStep = 10;
+    const result = await availability({
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
+    } as any);
+    expect(result).toContain('2024-01-01T10:10:00.000Z');
+    expect(result).not.toContain('2024-01-01T10:15:00.000Z');
+  });
+
 it('returns 17:00 slot for today when professional timezone is behind UTC', async () => {
     professionalData.timeZone = 'America/Los_Angeles';
     const result = await availability({
@@ -129,6 +139,22 @@ it('returns 17:00 slot for today when professional timezone is behind UTC', asyn
     expect(result).toEqual(['2024-01-02T12:00:00.000Z']);
     expect(appointmentsGetMock).not.toHaveBeenCalled();
     expect(timeBlocksGetMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores slots with cancelled appointments', async () => {
+    const slotStart = Timestamp.fromDate(new Date('2024-01-01T11:00:00Z'));
+    const slotEnd = Timestamp.fromDate(new Date('2024-01-01T11:30:00Z'));
+    appointmentsGetMock.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({ start: slotStart, end: slotEnd, status: 'cancelled' }),
+        },
+      ],
+    });
+    const result = await availability({
+      data: { date: '2024-01-01', professionalId: 'p1', serviceId: 's1' },
+    } as any);
+    expect(result).toContain('2024-01-01T11:00:00.000Z');
   });
 
   it('recalculates availability for same day ignoring cache', async () => {

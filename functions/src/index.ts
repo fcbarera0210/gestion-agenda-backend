@@ -1,6 +1,8 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onCall } from 'firebase-functions/v2/https';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { availability as availabilityHandler } from './availability';
+import { invalidateCacheForDocument } from './utils';
 
 setGlobalOptions({ region: 'southamerica-east1', memory: '256MiB', minInstances: 0 });
 export {
@@ -29,4 +31,22 @@ export { getProfessionalProfile, updateWorkSchedule, updateProfile } from './set
 export const availability = onCall(availabilityHandler);
 
 export { cleanAvailabilityCache } from './availabilityCacheCleanup';
+
+export const invalidateCacheOnAppointmentWrite = onDocumentWritten(
+  'appointments/{appointmentId}',
+  async event => {
+    await invalidateCacheForDocument(
+      event.data?.after?.data() || event.data?.before?.data()
+    );
+  }
+);
+
+export const invalidateCacheOnTimeBlockWrite = onDocumentWritten(
+  'timeBlocks/{blockId}',
+  async event => {
+    await invalidateCacheForDocument(
+      event.data?.after?.data() || event.data?.before?.data()
+    );
+  }
+);
 

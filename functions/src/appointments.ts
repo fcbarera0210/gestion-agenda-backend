@@ -206,6 +206,17 @@ export const createBooking = functions.https.onCall(async (request) => {
     }
     const appointmentsRef = db.collection('appointments');
     const slotEndDate = new Date(slotDate.getTime() + serviceDuration * 60000);
+    const overlapping = await appointmentsRef
+      .where('professionalId', '==', professionalId)
+      .where('start', '<', admin.firestore.Timestamp.fromDate(slotEndDate))
+      .where('end', '>', admin.firestore.Timestamp.fromDate(slotDate))
+      .get();
+    if (!overlapping.empty) {
+      throw new functions.https.HttpsError(
+        'already-exists',
+        'Ya existe una reserva activa para este horario.'
+      );
+    }
     await appointmentsRef.add({
       professionalId,
       serviceId,
@@ -221,6 +232,9 @@ export const createBooking = functions.https.onCall(async (request) => {
     await invalidateAvailabilityCache(professionalId, serviceId, slotDate);
     return { success: true, message: 'Reserva creada exitosamente.' };
   } catch (error) {
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
     throw new functions.https.HttpsError(
       'internal',
       'Ocurrió un error al procesar la reserva.',
