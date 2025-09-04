@@ -116,7 +116,7 @@ const isSameDay = cacheDate === currentDateInZone;
       .where('start', '>=', Timestamp.fromDate(startOfSelectedDay))
       .where('start', '<=', Timestamp.fromDate(endOfSelectedDay))
       .where('status', '!=', 'cancelled')
-      .select('start', 'end');
+      .select('start', 'end', 'status');
 
     const timeBlocksQuery = db
       .collection('timeBlocks')
