@@ -170,4 +170,20 @@ it('returns 17:00 slot for today when professional timezone is behind UTC', asyn
     expect(timeBlocksGetMock).toHaveBeenCalled();
     expect(availabilitySetMock).not.toHaveBeenCalled();
   });
+
+  it('returns availability for September 12 for specified professional', async () => {
+    jest.setSystemTime(new Date('2024-09-11T10:00:00Z'));
+    professionalData.workSchedule['jueves'] = {
+      isActive: true,
+      workHours: { start: '09:00', end: '18:00' },
+    };
+    const result = await availability({
+      data: {
+        date: '2024-09-12',
+        professionalId: 'IoUBAPoOZhUsIKP6kb7K7MoE8992',
+        serviceId: 's1',
+      },
+    } as any);
+    expect(result[0]).toBe('2024-09-12T09:00:00.000Z');
+  });
 });
