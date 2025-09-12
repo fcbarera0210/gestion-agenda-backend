@@ -1,8 +1,10 @@
 import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 
-admin.initializeApp();
-export const db = admin.firestore();
+initializeApp();
+export const db = getFirestore();
 
 export async function authenticate(request: functions.https.CallableRequest<any>) {
   const authHeader = request.rawRequest?.headers.authorization || '';
@@ -11,20 +13,20 @@ export async function authenticate(request: functions.https.CallableRequest<any>
   }
   const idToken = authHeader.split('Bearer ')[1];
   try {
-    return await admin.auth().verifyIdToken(idToken);
+    return await getAuth().verifyIdToken(idToken);
   } catch (err) {
     throw new functions.https.HttpsError('unauthenticated', 'Token inválido');
   }
 }
 
-export function ensureProfessional(decoded: admin.auth.DecodedIdToken, professionalId: string) {
+export function ensureProfessional(decoded: DecodedIdToken, professionalId: string) {
   const tokenProfessionalId = (decoded as any).professionalId || decoded.uid;
   if (tokenProfessionalId !== professionalId) {
     throw new functions.https.HttpsError('permission-denied', 'El profesional no coincide con el token');
   }
 }
 
-export const timestamp = admin.firestore.FieldValue.serverTimestamp;
+export const timestamp = () => FieldValue.serverTimestamp();
 
 export async function invalidateAvailabilityCache(
   professionalId: string,
