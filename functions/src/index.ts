@@ -4,7 +4,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { availability as availabilityHandler } from './availability';
 import { invalidateCacheForDocument } from './utils';
 
-setGlobalOptions({ region: 'southamerica-east1', memory: '256MiB', minInstances: 0 });
+setGlobalOptions({ region: 'us-central1', memory: '256MiB', minInstances: 0 });
 export {
   getAppointments,
   getAppointmentsForClient,
